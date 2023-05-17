@@ -112,85 +112,85 @@ def project_analyse(resdir, gitdir, codeface_conf, project_conf,
                 endmsg=prefix + "Commit analysis done."
             )
 
-        #########
-        # STAGE 2: Cluster analysis
-        exe = abspath(resource_filename(__name__, "R/cluster/persons.r"))
-        cwd, _ = pathsplit(exe)
-        cmd = []
-        cmd.append(exe)
-        cmd.extend(("--loglevel", loglevel))
-        if logfile:
-            cmd.extend(("--logfile", "{}.R.r{}".format(logfile, i)))
-        cmd.extend(("-c", codeface_conf))
-        cmd.extend(("-p", project_conf))
-        cmd.append(range_resdir)
-        cmd.append(str(range_id))
+        # #########
+        # # STAGE 2: Cluster analysis
+        # exe = abspath(resource_filename(__name__, "R/cluster/persons.r"))
+        # cwd, _ = pathsplit(exe)
+        # cmd = []
+        # cmd.append(exe)
+        # cmd.extend(("--loglevel", loglevel))
+        # if logfile:
+        #     cmd.extend(("--logfile", "{}.R.r{}".format(logfile, i)))
+        # cmd.extend(("-c", codeface_conf))
+        # cmd.extend(("-p", project_conf))
+        # cmd.append(range_resdir)
+        # cmd.append(str(range_id))
 
-        s2 = pool.add(
-                execute_command,
-                (cmd,),
-                {"direct_io":True, "cwd":cwd},
-                deps=[s1],
-                startmsg=prefix + "Detecting clusters...",
-                endmsg=prefix + "Detecting clusters done."
-            )
+        # s2 = pool.add(
+        #         execute_command,
+        #         (cmd,),
+        #         {"direct_io":True, "cwd":cwd},
+        #         deps=[s1],
+        #         startmsg=prefix + "Detecting clusters...",
+        #         endmsg=prefix + "Detecting clusters done."
+        #     )
 
-        #########
-        # STAGE 3: Generate cluster graphs
-        if not no_report:
-            pool.add(
-                    generate_reports,
-                    (start_rev, end_rev, range_resdir),
-                    deps=[s2],
-                    startmsg=prefix + "Generating reports...",
-                    endmsg=prefix + "Report generation done."
-                )
+        # #########
+        # # STAGE 3: Generate cluster graphs
+        # if not no_report:
+        #     pool.add(
+        #             generate_reports,
+        #             (start_rev, end_rev, range_resdir),
+        #             deps=[s2],
+        #             startmsg=prefix + "Generating reports...",
+        #             endmsg=prefix + "Report generation done."
+        #         )
 
     # Wait until all batch jobs are finished
     pool.join()
 
-    #########
-    # Global stage 1: Time series generation
-    log.info("=> Preparing time series data")
-    dispatch_ts_analysis(project_resdir, conf)
+    # #########
+    # # Global stage 1: Time series generation
+    # log.info("=> Preparing time series data")
+    # dispatch_ts_analysis(project_resdir, conf)
 
-    #########
-    # Global stage 2: Complexity analysis
-    ## NOTE: We rely on proper timestamps, so we can only run
-    ## after time series generation
-    log.info("=> Performing complexity analysis")
-    for i, range_id in enumerate(all_range_ids):
-        log.info("  -> Analysing range {}".format(range_id))
-        exe = abspath(resource_filename(__name__, "R/complexity.r"))
-        cwd, _ = pathsplit(exe)
-        cmd = [exe]
-        if logfile:
-            cmd.extend(("--logfile", "{}.R.complexity.{}".format(logfile, i)))
-        cmd.extend(("--loglevel", loglevel))
-        cmd.extend(("-c", codeface_conf))
-        cmd.extend(("-p", project_conf))
-        cmd.extend(("-j", str(n_jobs)))
-        cmd.append(repo)
-        cmd.append(str(range_id))
-        execute_command(cmd, direct_io=True, cwd=cwd)
+    # #########
+    # # Global stage 2: Complexity analysis
+    # ## NOTE: We rely on proper timestamps, so we can only run
+    # ## after time series generation
+    # log.info("=> Performing complexity analysis")
+    # for i, range_id in enumerate(all_range_ids):
+    #     log.info("  -> Analysing range {}".format(range_id))
+    #     exe = abspath(resource_filename(__name__, "R/complexity.r"))
+    #     cwd, _ = pathsplit(exe)
+    #     cmd = [exe]
+    #     if logfile:
+    #         cmd.extend(("--logfile", "{}.R.complexity.{}".format(logfile, i)))
+    #     cmd.extend(("--loglevel", loglevel))
+    #     cmd.extend(("-c", codeface_conf))
+    #     cmd.extend(("-p", project_conf))
+    #     cmd.extend(("-j", str(n_jobs)))
+    #     cmd.append(repo)
+    #     cmd.append(str(range_id))
+    #     execute_command(cmd, direct_io=True, cwd=cwd)
 
-    #########
-    # Global stage 3: Time series analysis
-    log.info("=> Analysing time series")
-    exe = abspath(resource_filename(__name__, "R/analyse_ts.r"))
-    cwd, _ = pathsplit(exe)
-    cmd = [exe]
-    if profile_r:
-        cmd.append("--profile")
-    if logfile:
-        cmd.extend(("--logfile", "{}.R.ts".format(logfile)))
-    cmd.extend(("--loglevel", loglevel))
-    cmd.extend(("-c", codeface_conf))
-    cmd.extend(("-p", project_conf))
-    cmd.extend(("-j", str(n_jobs)))
-    cmd.append(project_resdir)
-    execute_command(cmd, direct_io=True, cwd=cwd)
-    log.info("=> Codeface run complete!")
+    # #########
+    # # Global stage 3: Time series analysis
+    # log.info("=> Analysing time series")
+    # exe = abspath(resource_filename(__name__, "R/analyse_ts.r"))
+    # cwd, _ = pathsplit(exe)
+    # cmd = [exe]
+    # if profile_r:
+    #     cmd.append("--profile")
+    # if logfile:
+    #     cmd.extend(("--logfile", "{}.R.ts".format(logfile)))
+    # cmd.extend(("--loglevel", loglevel))
+    # cmd.extend(("-c", codeface_conf))
+    # cmd.extend(("-p", project_conf))
+    # cmd.extend(("-j", str(n_jobs)))
+    # cmd.append(project_resdir)
+    # execute_command(cmd, direct_io=True, cwd=cwd)
+    # log.info("=> Codeface run complete!")
 
 def mailinglist_analyse(resdir, mldir, codeface_conf, project_conf, loglevel,
                         logfile, n_jobs, mailinglists, use_corpus):

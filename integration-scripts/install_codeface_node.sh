@@ -6,7 +6,11 @@ echo "Providing id_service"
 
 sudo DEBIAN_FRONTEND=noninteractive apt-get -qqy install npm
 cd id_service
+
+# Clear node modules to make sure everything is set up properly
+sudo rm -rf node_modules
 sudo mkdir node_modules
+
 sudo chown vagrant.vagrant node_modules
 npm set ca null
 npm install --no-bin-links

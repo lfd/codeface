@@ -7,15 +7,31 @@ echo "Providing common binaries and libraries"
 echo "mysql-server mysql-server/root_password password" | sudo debconf-set-selections
 echo "mysql-server mysql-server/root_password_again password" | sudo debconf-set-selections
 
-sudo DEBIAN_FRONTEND=noninteractive apt-get -qqy install sinntp texlive default-jdk \
+sudo DEBIAN_FRONTEND=noninteractive apt-get -qqy install curl default-jre \
+    sinntp texlive default-jdk \
 	mysql-common mysql-client libgraphviz-dev libarchive13 libhunspell-dev \
-	mysql-server python-dev universal-ctags nodejs git subversion libxslt1-dev \
+	mysql-server python2.7 python2.7-dev python3-dev python3-mock \
+	universal-ctags nodejs git subversion libxslt1-dev \
 	sloccount graphviz doxygen libxml2-dev libcurl4-openssl-dev \
+	libssl-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev \
+	libpng-dev libtiff5-dev libjpeg-dev \
+	libmagick++-6.q16-dev libmagick++-6-headers imagemagick tcl-dev \
 	libmysqlclient-dev libcairo2-dev libxt-dev libcairo2-dev libmysqlclient-dev \
-	astyle xsltproc libxml2 libxml2-dev python build-essential libyaml-dev \
+	astyle xsltproc libxml2 libxml2-dev build-essential libyaml-dev \
 	libxml2-dev libcurl4-openssl-dev xorg-dev libx11-dev libgles2-mesa-dev \
-	gfortran libglu1-mesa-dev libxt-dev libpoppler-dev libpoppler-glib-dev python-mock \
+	gfortran libglu1-mesa-dev libxt-dev libpoppler-dev libpoppler-glib-dev \
 	libapparmor-dev libpoppler-cpp-dev
+
+# Make sure that python 2.7 and pip2 are used
+OUTPUT=$(which python2.7)
+echo "${OUTPUT}"
+
+curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
+sudo python2.7 get-pip.py
+sudo rm get-pip.py
+
+OUTPUT=$(which pip2)
+echo "${OUTPUT}"
 
 # Make sure that the mysql socket file is available as /var/run/mysqld/mysqld.sock
 # and /tmp/mysql.sock.

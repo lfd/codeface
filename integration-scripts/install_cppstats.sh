@@ -23,7 +23,7 @@ fi
 (cd ${TMPDIR} &&
     tar -xvf ${TMPDIR}/cppstats.tar.gz &&
     cd cppstats-${CPPSTATS_VERSION} &&
-    sudo python setup.py install)
+    sudo python2.7 setup.py install)
 
 echo "Providing srcML"
 SRCML_URL="http://131.123.42.38/lmcrs/beta/srcML-Ubuntu14.04-64.deb"
