@@ -43,6 +43,7 @@ suppressPackageStartupMessages(library(reshape))
 suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(optparse))
 suppressPackageStartupMessages(library(plyr))
+suppressPackageStartupMessages(library(wrapr))
 source("../utils.r", chdir=TRUE)
 source("../config.r", chdir=TRUE)
 source("../db.r", chdir=TRUE)
@@ -136,7 +137,7 @@ txt.comm.subsys <- function(.comm, .id.subsys, i) {
 
 get.rank.by.field <- function(.iddb, .field, N=dim(.iddb)[1]) {
   res <- .iddb[c("ID", "Name", .field)]
-  res <- res[order(res[c(.field)], decreasing=TRUE),]
+  res <- res[orderv(res[c(.field)], decreasing=TRUE),]
   s <- sum(res[,3])
   res <- cbind(res, data.frame(percent=res[,3]/s*100))
   res <- cbind(res, data.frame(norm=scale.data(res[,3], 0, 1)))
@@ -373,7 +374,7 @@ save.group <- function(conf, .tags, .iddb, idx, .prank, .filename=NULL, label) {
   ## so ncol() won't work any more in this case. Ensure that we are actually
   ## working with a matrix before explicitely setting the row and column
   ## names to consecutive numbers.
-  if (class(subset) == "matrix") {
+  if ("matrix" %in% class(subset)) {
     rownames(subset) <- 1:ncol(subset)
     colnames(subset) <- 1:ncol(subset)
   }
@@ -408,7 +409,7 @@ save.group <- function(conf, .tags, .iddb, idx, .prank, .filename=NULL, label) {
     ## Scale edge weights, extremely large weights will cause graphviz to
     ## fail during rendering
     g.scaled <- g
-    E(g.scaled)$weights <- scale.data(log(E(g.scaled)$weights + 1), 0, 100)
+    E(g.scaled)$weight <- scale.data(log(E(g.scaled)$weight + 1), 0, 100)
     
     write.graph(g.scaled, .filename, format="dot")
   }

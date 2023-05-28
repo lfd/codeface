@@ -326,7 +326,7 @@ def layout_graph(filename):
     out.close() # flushes the cache
     cmd = []
     cmd.append("dot")
-    cmd.append("-Kfdp")
+    # cmd.append("-Kfdp")  # May cause overlapping of nodes and edges
     cmd.append("-Tpdf")
     cmd.append("-Gcharset=utf-8")
     cmd.append("-o{0}.pdf".format(os.path.splitext(filename)[0]))

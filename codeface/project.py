@@ -112,39 +112,39 @@ def project_analyse(resdir, gitdir, codeface_conf, project_conf,
                 endmsg=prefix + "Commit analysis done."
             )
 
-        # #########
-        # # STAGE 2: Cluster analysis
-        # exe = abspath(resource_filename(__name__, "R/cluster/persons.r"))
-        # cwd, _ = pathsplit(exe)
-        # cmd = []
-        # cmd.append(exe)
-        # cmd.extend(("--loglevel", loglevel))
-        # if logfile:
-        #     cmd.extend(("--logfile", "{}.R.r{}".format(logfile, i)))
-        # cmd.extend(("-c", codeface_conf))
-        # cmd.extend(("-p", project_conf))
-        # cmd.append(range_resdir)
-        # cmd.append(str(range_id))
+        #########
+        # STAGE 2: Cluster analysis
+        exe = abspath(resource_filename(__name__, "R/cluster/persons.r"))
+        cwd, _ = pathsplit(exe)
+        cmd = []
+        cmd.append(exe)
+        cmd.extend(("--loglevel", loglevel))
+        if logfile:
+            cmd.extend(("--logfile", "{}.R.r{}".format(logfile, i)))
+        cmd.extend(("-c", codeface_conf))
+        cmd.extend(("-p", project_conf))
+        cmd.append(range_resdir)
+        cmd.append(str(range_id))
 
-        # s2 = pool.add(
-        #         execute_command,
-        #         (cmd,),
-        #         {"direct_io":True, "cwd":cwd},
-        #         deps=[s1],
-        #         startmsg=prefix + "Detecting clusters...",
-        #         endmsg=prefix + "Detecting clusters done."
-        #     )
+        s2 = pool.add(
+                execute_command,
+                (cmd,),
+                {"direct_io":True, "cwd":cwd},
+                deps=[s1],
+                startmsg=prefix + "Detecting clusters...",
+                endmsg=prefix + "Detecting clusters done."
+            )
 
-        # #########
-        # # STAGE 3: Generate cluster graphs
-        # if not no_report:
-        #     pool.add(
-        #             generate_reports,
-        #             (start_rev, end_rev, range_resdir),
-        #             deps=[s2],
-        #             startmsg=prefix + "Generating reports...",
-        #             endmsg=prefix + "Report generation done."
-        #         )
+        #########
+        # STAGE 3: Generate cluster graphs
+        if not no_report:
+            pool.add(
+                    generate_reports,
+                    (start_rev, end_rev, range_resdir),
+                    deps=[s2],
+                    startmsg=prefix + "Generating reports...",
+                    endmsg=prefix + "Report generation done."
+                )
 
     # Wait until all batch jobs are finished
     pool.join()
