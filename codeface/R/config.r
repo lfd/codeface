@@ -61,14 +61,6 @@ load.config <- function(global.file, project.file=NULL) {
     conf$dbport <- as.integer(conf$dbport)
   }
 
-  if(is.null(conf$understand)) {
-    conf$understand <- FALSE
-  }
-
-  if(is.null(conf$sloccount)) {
-    conf$sloccount <- FALSE
-  }
-
   if (is.null(project.file)) {
       return(conf)
   }
@@ -80,6 +72,14 @@ load.config <- function(global.file, project.file=NULL) {
 
   ## Append project configuration to conf
   conf <- c(conf, yaml.load_file(project.file))
+
+  if(is.null(conf$understand)) {
+    conf$understand <- FALSE
+  }
+
+  if(is.null(conf$sloccount)) {
+    conf$sloccount <- FALSE
+  }
 
   if (is.null(conf$project) || is.null(conf$repo)) {
     stop("Malformed configuration: Specify project and repository!\n")
