@@ -610,7 +610,7 @@ do.release.analysis <- function(resdir, graphdir, conf) {
   plot.id <- get.clear.plot.id(conf, plot.name)
 
   dat <- compute.release.distance(series.merged, conf)
-  if (!is.na(dat)) { # if too few revisions are present, skip further analysis
+  if (!all(is.na(dat))) { # if too few revisions are present, skip further analysis
     dat <- data.frame(time=as.character(conf$boundaries$date.end[-1]), value=dat,
                       value_scaled=dat, plotId=plot.id)
 

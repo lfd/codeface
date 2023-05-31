@@ -27,3 +27,6 @@ sudo Rscript packages.r
 
 # Add wrapr package for dictionary sorting
 sudo R -e 'install.packages("wrapr")'
+
+# Add svglite graphics device package to avoid version mismatch
+sudo R -e 'install.packages("svglite")'
