@@ -315,8 +315,9 @@ init.db <- function(conf) {
          "(Did you not run the VCS analysis before the ml analysis?)\n")
   }
 
-  ## Set Session wait_timeout variable to 24 hours, default is 8
-  query <- str_c("SET SESSION wait_timeout=", 24*60*60)
+  ## Set Session timeout variables to 5 days, default is 8 hours
+  query <- str_c("SET SESSION wait_timeout=", 5*24*60*60)
+  query <- str_c("SET SESSION interactive_timeout=", 5*24*60*60)
   dbGetQuery(con, query)
 
   conf <- augment.conf(conf)
@@ -335,8 +336,9 @@ init.db.global <- function(conf) {
   conf$con <- con
   dbGetQuery(con, "SET NAMES utf8")
 
-  ## Set Session wait_timeout variable to 24 hours, default is 8
-  query <- str_c("SET SESSION wait_timeout=", 24*60*60)
+  ## Set Session timeout variables to 5 days, default is 8 hours
+  query <- str_c("SET SESSION wait_timeout=", 5*24*60*60)
+  query <- str_c("SET SESSION interactive_timeout=", 5*24*60*60)
   dbGetQuery(con, query)
 
   return(conf)
