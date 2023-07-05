@@ -422,9 +422,10 @@ save.group <- function(conf, .tags, .iddb, idx, .prank, .filename=NULL, label) {
 store.graph.db <- function(conf, baselabel, idx, .iddb, g.reg, g.tr, j) {
   ## Construct a systematic representation of the graph for the data base
   edges <- get.data.frame(g.reg, what="edges")
-  colnames(edges) <- c("fromId", "toId")
+  colnames(edges) <- c("fromId", "toId", "weight")
   edges$fromId <- as.integer(edges$fromId)
   edges$toId <- as.integer(edges$toId)
+  edges$weight <- as.integer((edges$weight))
 
   ## NOTE: Index handling is somewhat complicated: idx contains a set
   ## of indices generated for the global graph. .iddx[index,]$ID.orig
@@ -441,7 +442,7 @@ store.graph.db <- function(conf, baselabel, idx, .iddb, g.reg, g.tr, j) {
   ## database id
   if (dim(edges)[1] > 0) {
     ## Only write an edge list if the cluster has any edges, actually
-    edges <- gen.weighted.edgelist(edges)
+    # edges <- gen.weighted.edgelist(edges)
     write.graph.db(conf, conf$range.id, baselabel, edges, j)
   }
 }
@@ -697,7 +698,6 @@ performAnalysis <- function(outdir, conf) {
   ## The adjacency matrix file format uses a different convention for edge
   ## direction than GNU R, so we need to transpose the matrix
   adjMatrix <- t(adjMatrix)
-
   ids.db <- get.range.stats(conf$con, conf$range.id)
 
   ## Check that ids are in correct order, the ids queried from the
