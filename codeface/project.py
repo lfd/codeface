@@ -149,6 +149,26 @@ def project_analyse(resdir, gitdir, codeface_conf, project_conf,
     # Wait until all batch jobs are finished
     pool.join()
 
+    # Generate plain community plots
+    for i, range_id in enumerate(all_range_ids):
+        start_rev, end_rev, rc_rev = dbm.get_release_range(project_id, range_id)
+        range_resdir = gen_range_path(project_resdir, i+1, start_rev, end_rev)
+        prefix = gen_prefix(i+1, len(all_range_ids), start_rev, end_rev)
+
+        if (dbm.get_num_commits_in_range(range_id) < 5):
+            log.info("=> Release range contains less than 5 commits, skipping")
+            continue
+
+        exe = abspath(resource_filename(__name__, "R/shiny/plot_export.r"))
+        cwd, _ = pathsplit(exe)
+        cmd = [exe]
+        cmd.extend(("--loglevel", loglevel))
+        cmd.extend(("-c", codeface_conf))
+        cmd.extend(("-p", project_conf))
+        cmd.append(range_resdir)
+        cmd.append(str(range_id))
+        execute_command(cmd, direct_io=True, cwd=cwd)
+
     #########
     # Global stage 1: Time series generation
     log.info("=> Preparing time series data")
@@ -190,6 +210,23 @@ def project_analyse(resdir, gitdir, codeface_conf, project_conf,
     cmd.extend(("-j", str(n_jobs)))
     cmd.append(project_resdir)
     execute_command(cmd, direct_io=True, cwd=cwd)
+
+    # Analyse community trends
+    log.info("=> Analysing community trends")
+    exe = abspath(resource_filename(__name__, "R/cluster/community_analysis.r"))
+    cwd, _ = pathsplit(exe)
+    cmd = [exe]
+    if profile_r:
+        cmd.append("--profile")
+    if logfile:
+        cmd.extend(("--logfile", "{}.R.ts".format(logfile)))
+    cmd.extend(("--loglevel", loglevel))
+    cmd.extend(("-c", codeface_conf))
+    cmd.extend(("-p", project_conf))
+    cmd.extend(("-j", str(n_jobs)))
+    cmd.append(project_resdir)
+    execute_command(cmd, direct_io=True, cwd=cwd)
+
     log.info("=> Codeface run complete!")
 
 def mailinglist_analyse(resdir, mldir, codeface_conf, project_conf, loglevel,

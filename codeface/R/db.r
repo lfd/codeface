@@ -35,6 +35,12 @@ get.project.id <- function(con, name) {
   return(res$id)
 }
 
+get.project.name <- function(con, id) {
+  res <- dbGetQuery(con, str_c("SELECT name FROM project WHERE id=", id))
+
+  return(res$name)
+}
+
 ## Determine the ID of a given plot for a given project. Since
 ## plots are not created in parallel, we need no locking.
 ## Also, clear the plot for new data. This function is supposed to be

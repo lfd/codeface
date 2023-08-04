@@ -308,6 +308,21 @@ query.cluster.ids <- function(conf, range.id, cluster.method) {
   return(query.cluster.ids.con(conf$con, conf$pid, range.id, cluster.method))
 }
 
+## Get the cluster numbers of all clusters for the given release range
+query.cluster.numbers.con <- function(con, pid, range.id, cluster.method) {
+  dat <- dbGetQuery(con, str_c("SELECT clusterNumber FROM cluster WHERE ",
+                               "projectId=", pid, " AND releaseRangeId=",
+                               range.id, " AND clusterMethod=",
+                               sq(cluster.method), " AND clusterNumber >= 0"))
+
+  return(dat$clusterNumber)
+}
+
+query.cluster.numbers <- function(conf, range.id, cluster.method) {
+  return(query.cluster.numbers.con(conf$con, conf$pid, range.id,
+         cluster.method))
+}
+
 ## Cluster -1 is not a proper cluster, but contains the global
 ## collaboration structure
 query.global.collab.con <- function(con, pid, range.id, cluster.method="Spin Glass Community") {
