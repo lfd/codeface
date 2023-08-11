@@ -58,6 +58,15 @@ if (is.na(num.cores)) {
     num.cores <- 1
 }
 
+## Install commonly available dependencies
+## Install wrapr package for dictionary sorting
+install.packages("wrapr")
+
+## Install svglite and ragg graphics device packages
+## to prevent a graphics API version mismatch
+install.packages("svglite")
+install.packages("ragg")
+
 ## install potentially unresolvable dependencies
 install.packages("devtools")
 library(devtools)
