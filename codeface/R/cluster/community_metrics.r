@@ -1010,7 +1010,7 @@ write.plots.trends <- function(p.id, trends, markov.chains, developer.classifica
   if(!is.null(markov.chains)) {
     chain.types <- names(markov.chains)
     for (type in chain.types) {
-      filename <- paste(outdir, "/markov_", type, ".pdf", sep="")
+      filename <- paste(outdir, "/", type, ".pdf", sep="")
       pdf(file=filename)
 
       if (dim(markov.chains[[type]]) == 3) {
