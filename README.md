@@ -1,8 +1,27 @@
 # Installing and using Codeface
 
 ## Installing Codeface
-The recommended way to set up a Codeface instance is via
-vagrant. Clone the repository and run
+### Docker
+The recommended way to set up a Codeface instance is via docker.
+Clone the repository and run
+
+	docker build -t codeface .
+
+to create the docker image and execute all provision scripts. Use
+
+	docker run --name codeface -d -t --user codeface -v .:/home/codeface/codeface codeface
+
+to create a docker container based on the Codeface docker image. To
+log in to the docker container and get shell access, use
+
+	docker exec -it codeface bash
+
+If docker is not yet installed on your system, please consult the
+[official installation instructions](https://docs.docker.com/engine/install/).
+
+### Vagrant
+An alternative way to set up Codeface is via vagrant. Clone
+the repository and run
 
 	vagrant up
 
@@ -18,7 +37,7 @@ your system. To get shell access on the machine in each case, use
 	vagrant ssh
 
 If vagrant is not yet installed on your system, please consult
-the corresponding [wiki page] (https://github.com/siemens/codeface/wiki/Runnning-codeface-with-Vagrant).
+the corresponding [wiki page](https://github.com/siemens/codeface/wiki/Runnning-codeface-with-Vagrant).
 
 ## Analysing Projects
 ### Concept
@@ -37,13 +56,13 @@ To perform an analysis of project qemu (a machine emulation software)
 and inspect the results in the interactive web frontend, run the
 following steps:
 
-1. After bringing up the vagrant instance, `vagrant ssh` into the
-   virtual machine
-2. Start the ID service with `/vagrant/id_service/start_id_service.sh&`
+1. Connect to the docker container or vagrant machine
+2. In a vagrant-based installation, start the ID service with
+   `/vagrant/id_service/start_id_service.sh&`
 3. Run an analysis of qemu with `/vagrant/analysis_example.sh` (this process
    may take a while to complete)
-4. Start the webserver with `cd vagrant; ./shiny-server.sh`
-5. Point your webserver on the host at [http://localhost:8081](http://localhost:8081)
+4. <s>Start the webserver with `cd vagrant; ./shiny-server.sh`</s> (to be fixed)
+5. <s>Point your webserver on the host at [http://localhost:8081](http://localhost:8081)</s>
 
 ## Status
 - ![](https://travis-ci.org/siemens/codeface.svg?branch=master) on master
