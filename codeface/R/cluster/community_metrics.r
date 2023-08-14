@@ -757,6 +757,10 @@ compute.project.graph.trends <-
           revision.data[sapply(revision.data, is.null)] <- NULL
         }
 
+      if (is.null(revision.data)) {
+        return(NULL);
+      }
+
       ## Create igraph object and select communities which are of a minimum size 4
       revision.data <-
         mclapply(revision.data, mc.cores=n.cores,
