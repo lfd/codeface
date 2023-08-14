@@ -6,33 +6,40 @@
 # notice and this notice are preserved.  This file is offered as-is,
 # without any warranty.
 
-# Analyse an example project (qemu) with Codeface.
+# The purpose of this script is to demonstrate an example analysis
+# with Codeface.
 
-cd
-if [ ! -d /vagrant ]; then
-   echo "This script assumes a Vagrant based installation, aborting."
-   exit 1
+# Vagrant-based installation
+if [ -d /vagrant ]; then
+    if [ ! -d $HOME/git-repos ]; then
+        mkdir git-repos
+    fi
+    if [ ! -d $HOME/res ]; then
+        mkdir res
+    fi
+
+    # Clone git repository
+    (cd $HOME/git-repos; git clone https://github.com/matplotlib/matplotlib)
+
+    # Run default analyses
+    codeface -l devinfo -j4 run \
+        -c /vagrant/codeface.conf \
+        -p /vagrant/conf/matplotlib.conf \
+        $HOME/res $HOME/git-repos
+
+# Docker-based installation
+elif [ -d $HOME/codeface/codeface ]; then
+    # Clone git repository
+    (cd $HOME/git-repos; git clone https://github.com/matplotlib/matplotlib)
+
+    # Run default analyses
+    codeface -l devinfo -j4 run \
+        -c $HOME/codeface/codeface.conf \
+        -p $HOME/codeface/conf/matplotlib.conf \
+        $HOME/res $HOME/git-repos
+
+else
+    echo "This script assumes a docker or vagrant based setup."
+    echo "Aborting..."
+    echo "Please adjust this script to your custom paths."
 fi
-
-if [ ! -d $HOME/git-repos ]; then
-    mkdir git-repos
-fi
-
-if [ ! -d $HOME/res ]; then
-    mkdir res
-fi
-
-echo "Cloning git repository for project qemu"
-(cd git-repos; git clone http://git.qemu.org/git/qemu.git)
-
-if [ ! -d $HOME/git-repos/qemu ]; then
-    echo "Could not clone git repository for qemu via http."
-    echo "Proxy access problem? Be sure to set the environment variable http_proxy if required."
-    echo "Aborting"
-    exit 1
-fi
-
-# The use of two cpus (-j2) is intentional to make sure things work in
-# parallel processing mode
-echo "Running Codeface on qemu"
-codeface -j2 run -c /vagrant/codeface.conf -p /vagrant/conf/qemu.conf $HOME/res $HOME/git-repos
