@@ -20,7 +20,8 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get -qqy install curl default-jre \
 	astyle xsltproc libxml2 libxml2-dev build-essential libyaml-dev \
 	libxml2-dev libcurl4-openssl-dev xorg-dev libx11-dev libgles2-mesa-dev \
 	gfortran libglu1-mesa-dev libxt-dev libpoppler-dev libpoppler-glib-dev \
-	libapparmor-dev libpoppler-cpp-dev
+	libapparmor-dev libpoppler-cpp-dev \
+	wordnet
 
 # Make sure that python 2.7 and pip2 are used
 OUTPUT=$(which python2.7)

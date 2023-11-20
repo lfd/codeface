@@ -24,6 +24,8 @@ codeface.egg-info/
 log/
 auto/
 db/
+exploration/
+ml/
 rep/
 res/
 tmp/

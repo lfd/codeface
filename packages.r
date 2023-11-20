@@ -105,7 +105,7 @@ if(length(p) > 0) {
 ## Install following packages from different sources
 ## and update existing installations, if needed
 reinstall.package.from.github("tm.plugin.mail", "bockthom/tm-plugin-mail/pkg")
-reinstall.package.from.github("snatm", "wolfgangmauerer/snatm/pkg")
+reinstall.package.from.github("snatm", "nicolehoess/snatm/pkg")
 reinstall.package.from.github("shinyGridster", "wch/shiny-gridster")
 reinstall.package.from.github("shinybootstrap2", "rstudio/shinybootstrap2")
 
