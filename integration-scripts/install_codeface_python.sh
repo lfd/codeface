@@ -14,6 +14,7 @@ sudo pip2 install --upgrade python-ctags3
 sudo pip2 install --upgrade PyYAML
 sudo pip2 install --upgrade mysqlclient
 sudo pip2 install --upgrade ftfy<5
+sudo pip2 install backports.functools_lru_cache
 
 # Only development mode works
 # install fails due to R scripts accessing unbundled resources!
