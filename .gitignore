@@ -24,6 +24,8 @@ codeface.egg-info/
 log/
 auto/
 db/
+exploration/
+ml/
 rep/
 res/
 tmp/
@@ -39,3 +41,5 @@ build/
 dist/
 vendor/
 .coverage
+id_service/package-lock.json
+

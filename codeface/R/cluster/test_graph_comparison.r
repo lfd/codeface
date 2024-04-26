@@ -37,7 +37,7 @@ graph.comparison.test <- function () {
   adj.matrix <- t(matrix(data = c(r.1,r.2,r.3,r.4,r.5,r.6,r.7,r.8), ncol = 8, nrow = 8))
   g.1 <- graph.adjacency(adj.matrix)
   names <- c("joe", "bill", "jill", "mike", "ben", "chris", "meg", "Dee")
-  V(g.1)$Id <- names
+  V(g.1)$name <- names
   idx <- 1:vcount(g.1)
   rand.idx <- sample(idx,size=length(idx))
   g.2 <- graph.adjacency(g.1[rand.idx,rand.idx])

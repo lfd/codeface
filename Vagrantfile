@@ -21,25 +21,29 @@ integration-scripts/setup_database.sh
 sudo chmod a+rw log
 SCRIPT
 
+ENV['VAGRANT_DEFAULT_PROVIDER'] = 'virtualbox'
+
 # Uncomment the Ubuntu 16.04/Xenial lines, and comment out the trusty related
 # lines to base the installation on Ubuntu 16.04 (Xenial) instead of 14.04 (Trusty)
 Vagrant.configure("2") do |config|
-  # Hmm... no Debian image available yet, let's use a derivate
-  # Ubuntu 12.04 LTS (Precise Pangolin)
+  # Base the installation on Ubuntu 22.04
+  config.vm.box = "bento/ubuntu-22.04"
 
- config.vm.provider :virtualbox do |vbox, override|
-   #config.vm.box = "ffuenf/ubuntu-16.04.2-server-amd64"
-   config.vm.box = "ubuntu/trusty64"
+  # Increase disk size for extensive analyses (requires vagrant-disksize plugin)
+  # config.disksize.size = '200GB'
 
-    vbox.customize ["modifyvm", :id, "--memory", "4096"]
-    vbox.customize ["modifyvm", :id, "--cpus", "2"]
+  config.vm.provider :virtualbox do |vbox, override|
+    #config.vm.box = "ffuenf/ubuntu-16.04.2-server-amd64"
+    #config.vm.box = "ubuntu/trusty64"
+    vbox.customize ["modifyvm", :id, "--memory", "16384"]
+    vbox.customize ["modifyvm", :id, "--cpus", "4"]
   end
 
-  config.vm.provider :lxc do |lxc, override|
+  #config.vm.provider :lxc do |lxc, override|
     #override.vm.box = "vagrant-lxc-xenial-amd64.box"
     #override.vm.box_url = "http://terminal.lfd.sturhax.de/~wolfgang/vagrant-lxc-xenial-amd64.box"
-    override.vm.box = "fgrehm/trusty64-lxc"
-  end
+    #override.vm.box = "fgrehm/trusty64-lxc"
+  #end
 
   # Forward main web ui (8081) and testing (8100) ports
   config.vm.network :forwarded_port, guest: 8081, host: 8081
@@ -55,9 +59,9 @@ Vagrant.configure("2") do |config|
     s.inline = $build
   end
 
-  config.vm.provision "test", type: "shell" do |s|
-    s.privileged = false
-    s.inline = "cd /vagrant && integration-scripts/test_codeface.sh"
-  end
+  # config.vm.provision "test", type: "shell" do |s|
+  #  s.privileged = false
+  #  s.inline = "cd /vagrant && integration-scripts/test_codeface.sh"
+  # end
 
 end

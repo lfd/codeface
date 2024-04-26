@@ -354,6 +354,16 @@ check.corpus.precon <- function(corp.base) {
       author <- paste(name, email)
     }
 
+    ## Check if email address is <noreply@github.com>. Then add name prefix to e-mail
+    ## address to avoid combining all that persons having the same e-mail address.
+    if (grepl("<noreply@github.com>", author)) {
+      r <- regexpr("<.+>", author, TRUE)
+      email <- substr(author, r, r + attr(r, "match.length") - 1)
+      name <- sub(email, "", author, fixed=TRUE)
+      email <- paste0("<", gsub(" ","\\.", name), "noreply@github.com>")
+      author <- paste(name, email)
+    }
+
     ## return new author string
     return(author)
   }
@@ -387,7 +397,8 @@ check.corpus.precon <- function(corp.base) {
     date.formats.without.tz <- c(
       "%a, %d %b %Y %H:%M:%S",  # initially used format; e.g., "Date: Tue, 20 Feb 2009 20:24:54 +0100"
       "%d %b %Y %H:%M:%S",  # missing weekday; e.g., "Date: 20 Feb 2009 20:24:54 +0100"
-      "%a, %d %b %Y %H:%M"  # missing seconds; e.g. "Date: Wed, 21 Aug 2013 15:02 +0200"
+      "%a, %d %b %Y %H:%M",  # missing seconds; e.g., "Date: Wed, 21 Aug 2013 15:02 +0200"
+      "%a %b %d %H:%M:%S %Y" # weird format; e.g, "Date: Fri Sep 10 16:45:23 2004"
     )
     ## append time-zone part and incorporate pattern without time-zone indicator
     date.formats <- c(

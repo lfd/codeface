@@ -5,7 +5,7 @@ suppressPackageStartupMessages(library(testthat))
 suppressPackageStartupMessages(library(stringr))
 
 do.tests <- function(dir) {
-    res <- test_dir(dir);
+    res <- test_dir(dir, reporter = "summary")
     if (length(res$failures) > 0) {
         cat(str_c("Some R tests failed for directory '", dir, "'"))
 

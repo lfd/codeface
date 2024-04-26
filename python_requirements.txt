@@ -1,7 +1,7 @@
 pyyaml
 progressbar
-python-ctags
-mysql-python
+python-ctags3
+mysqlclient
 py-notify
 notify
 pyinotify

@@ -58,30 +58,62 @@ if (is.na(num.cores)) {
     num.cores <- 1
 }
 
-p <- filter.installed.packages(c("BiRewire", "graph"))
+## Install commonly available dependencies
+## Install wrapr package for dictionary sorting
+install.packages("wrapr")
+
+## Install svglite and ragg graphics device packages
+## to prevent a graphics API version mismatch
+install.packages("svglite")
+install.packages("ragg")
+
+## install potentially unresolvable dependencies
+install.packages("devtools")
+library(devtools)
+devtools::install_url("https://cran.r-project.org/src/contrib/Archive/BH/BH_1.75.0-0.tar.gz")
+devtools::install_url("https://cran.r-project.org/src/contrib/Archive/slam/slam_0.1-40.tar.gz")
+devtools::install_url("https://cran.r-project.org/src/contrib/Archive/arules/arules_1.5-0.tar.gz")
+devtools::install_url("https://cran.r-project.org/src/contrib/Archive/proxy/proxy_0.4-16.tar.gz")
+#devtools::install_url("https://cran.r-project.org/src/contrib/Archive/tm/tm_0.7-1.tar.gz")
+devtools::install_url("https://cran.r-project.org/src/contrib/Archive/logging/logging_0.8-104.tar.gz")
+#devtools::install_url("https://cran.r-project.org/src/contrib/Archive/markovchain/markovchain_0.6.9.11.tar.gz")
+devtools::install_url("https://cran.r-project.org/src/contrib/Archive/rjson/rjson_0.2.20.tar.gz")
+devtools::install_github("nathan-russell/hashmap")
+
+## install from BioConductor
+p <- filter.installed.packages(c("BiRewire", "BiocGenerics", "graph"))
 if(length(p) > 0) {
-    source("http://bioconductor.org/biocLite.R")
-    biocLite(p)
+
+    #source("http://bioconductor.org/biocLite.R")
+    #biocLite(p)
+    install.packages("BiocManager")
+    BiocManager::install(p)
 }
 
+## install from CRAN
 p <- filter.installed.packages(c("statnet", "tm", "optparse", "arules", "data.table", "plyr",
-                                 "igraph", "zoo", "xts", "lubridate", "xtable", "ggplot2",
+                                 "zoo", "xts", "lubridate", "xtable", "ggplot2",
                                  "reshape", "wordnet", "stringr", "yaml", "ineq",
                                  "scales", "gridExtra", "scales", "RMySQL", "svglite",
                                  "RCurl", "mgcv", "shiny", "dtw", "httpuv", "devtools",
                                  "corrgram", "logging", "png", "rjson", "lsa", "RJSONIO",
                                  "GGally", "corrplot", "psych", "markovchain", "hashmap"))
 if(length(p) > 0) {
-    install.packages(p, dependencies=T, verbose=F, quiet=T, Ncpus=num.cores)
+    install.packages(p, dependencies=T, verbose=F, quiet=F, Ncpus=num.cores)
 }
 
 ## Install following packages from different sources
 ## and update existing installations, if needed
-reinstall.package.from.github("tm.plugin.mail", "wolfgangmauerer/tm-plugin-mail/pkg")
-reinstall.package.from.github("snatm", "wolfgangmauerer/snatm/pkg")
+reinstall.package.from.github("tm.plugin.mail", "bockthom/tm-plugin-mail/pkg")
+reinstall.package.from.github("snatm", "nicolehoess/snatm/pkg")
 reinstall.package.from.github("shinyGridster", "wch/shiny-gridster")
 reinstall.package.from.github("shinybootstrap2", "rstudio/shinybootstrap2")
 
 ## Bioconductor packages
-source("https://bioconductor.org/biocLite.R")
-biocLite("Rgraphviz")
+#source("https://bioconductor.org/biocLite.R")
+#biocLite("Rgraphviz")
+BiocManager::install("Rgraphviz")
+
+# Install irgaph version 1.6.0, which is required
+# for functions used in trends analysis
+devtools::install_url("https://cran.r-project.org/src/contrib/Archive/igraph/igraph_1.6.0.tar.gz")

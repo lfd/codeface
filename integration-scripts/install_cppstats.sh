@@ -5,7 +5,7 @@
 # Copyright Wolfgang Mauerer <wolfgang.mauerer@oth-regensburg.de>
 # SPDX-License-Identifier:	Apache-2.0 BSD-2-Clause GPL-2.0+ MIT WTFPL
 
-export CPPSTATS_VERSION=0.9.3
+export CPPSTATS_VERSION=0.9.4
 
 echo "Providing cppstats $CPPSTATS_VERSION"
 
@@ -23,7 +23,7 @@ fi
 (cd ${TMPDIR} &&
     tar -xvf ${TMPDIR}/cppstats.tar.gz &&
     cd cppstats-${CPPSTATS_VERSION} &&
-    sudo python setup.py install)
+    sudo python2.7 setup.py install)
 
 echo "Providing srcML"
 SRCML_URL="http://131.123.42.38/lmcrs/beta/srcML-Ubuntu14.04-64.deb"

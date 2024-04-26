@@ -555,7 +555,9 @@ compute.community.metrics <- function(g, comm) {
   res$ev.cent <- evcent(g, scale=TRUE)$vector
   res$ev.cent.gini <- ineq(res$ev.cent, type="Gini")
   res$adhesion <- graph.adhesion(g, checks=T)
-  res$diversity <- graph.diversity(g)
+  if (!is_directed(g)) {
+    res$diversity <- graph.diversity(g)
+  }
   res$diversity[!is.finite(res$diversity)] <- NA
   res$min.cut <- graph.mincut(g)
   res$edge.vert.ratio <- ecount(g) / vcount(g)
@@ -588,26 +590,22 @@ compute.community.metrics <- function(g, comm) {
 
   ## Prepare data to be melted, maintain vertex and cluster ids
   ## by converting named vectors to named lists
-  res <- lapply(res, function(x) as.list(x))
+  # res <- lapply(res, function(x) as.list(x))
 
   return(res)
 }
 
-
-compute.all.project.trends <- function(con, type, outdir) {
-  project.ids <- query.projects(con)$id
-
-  for (p.id in project.ids) {
-    trends <- compute.project.graph.trends(con, p.id, type)
-    if (length(trends) > 0) {
-      write.plots.trends(trends$metrics, trends$markov.chains,
-                         trends$developer.classifications,
-                         trends$class.edge.probs,
-                         outdir)
-    } else {
-      print("project data frame empty")}
-    rm(trends)
-  }
+compute.all.project.trends <- function(conf, type, outdir) {
+  trends <- compute.project.graph.trends(conf, type)
+  trends$name <- get.project.name(conf$con, conf$pid)
+  if (length(trends) > 0) {
+    write.plots.trends(conf$pid, trends$metrics, trends$markov.chains,
+                       trends$developer.classifications,
+                       trends$class.edge.probs,
+                       outdir)
+  } else {
+    print("project data frame empty")}
+  rm(trends)
 
   return(0)
 }
@@ -649,10 +647,11 @@ compute.project.graph.trends <-
   metrics.df <- ldply(chunks, .progress='text',
     function(chunk) {
       ## Select on the ranges for this particular chunk
-      p.ranges.chunk <- p.ranges[chunk,]
+      p.ranges.chunk <- p.ranges[unlist(chunk),]
       ## Get graph and additional data for each revision
       if(type == "developer") {
           conf$type <- "function"
+          conf$artifactType <- "function"
           edgelist.stream <- build.dev.net.stream(conf, p.ranges.chunk)
       }
 
@@ -754,7 +753,13 @@ compute.project.graph.trends <-
 
                 return(res)})
 
-        revision.data[sapply(revision.data, is.null)] <- NULL
+        if (length(revision.data)) {
+          revision.data[sapply(revision.data, is.null)] <- NULL
+        }
+
+      if (is.null(revision.data)) {
+        return(NULL);
+      }
 
       ## Create igraph object and select communities which are of a minimum size 4
       revision.data <-
@@ -865,13 +870,11 @@ plot.box <- function(project.df, feature, outdir) {
     ylim1[1] <- 0
     p1 = p0 + coord_cartesian(ylim = ylim1*1.05)
 
-    file.dir <- paste(outdir, "/", project.name, "_", analysis.method, sep="")
-    dir.create(file.dir, recursive=T)
-    file.name <- paste(file.dir, "/", feature, ".png",sep="")
+    file.name <- paste(outdir, "/", feature, ".png",sep="")
     ggsave(file.name, p1, height=8, width=20)
 
     ## ## Adjusted box plots for skewed data
-    ## file.name <- paste(file.dir, "/", feature, "_adjusted.pdf", sep="")
+    ## file.name <- paste(outdir, "/", feature, "_adjusted.pdf", sep="")
 
     ## pdf(file.name)
 
@@ -883,7 +886,7 @@ plot.box <- function(project.df, feature, outdir) {
     ## dev.off()
 
     if(feature %in% c('page.rank','v.degree')) {
-      file.name <- paste(file.dir, '/', feature, "_distribution.pdf", sep="")
+      file.name <- paste(outdir, '/', feature, "_distribution.pdf", sep="")
       p2 <- ggplot(project.df, aes(x=value)) +
             geom_histogram(aes(y=..density..),colour="black", fill="white") +
             geom_density(alpha=.2, fill="#FF6666")
@@ -917,12 +920,10 @@ plot.series <- function(project.df, feature, outdir) {
                                                  face="plain", angle=45,
                                                  hjust=0.5),
                       strip.text.x = element_text(size=15))
-  }
 
-  file.dir <- paste(outdir, "/", project.name, "_", analysis.method, sep="")
-  dir.create(file.dir, recursive=T)
-  file.name <- paste(file.dir, "/time_series_metrics.png",sep="")
-  ggsave(file.name, p, height=41, width=20)
+    file.name <- paste(outdir, "/time_series_metrics.png",sep="")
+    ggsave(file.name, p, height=41, width=20)
+  }
 }
 
 
@@ -950,9 +951,7 @@ plot.scatter <- function(project.df, feature1, feature2, outdir) {
         facet_wrap( ~ cycle) +
         geom_smooth(method="lm")
 
-    file.dir <- paste(outdir, "/", project.name, "_", analysis.method, sep="")
-    dir.create(file.dir, recursive=T)
-    file.name <- paste(file.dir, "/", feature1, "_vs_", feature2, ".png",sep="")
+    file.name <- paste(outdir, "/", feature1, "_vs_", feature2, ".png",sep="")
     ggsave(file.name, p, height=40, width=40)
   }
 }
@@ -973,7 +972,7 @@ plot.class.match <- function(class.match.df, class.rank.cor, filename) {
   ggsave(plot=match.plot, filename=filename, width=7, height=5)
 }
 
-write.plots.trends <- function(trends, markov.chains, developer.classifications,
+write.plots.trends <- function(p.id, trends, markov.chains, developer.classifications,
                                class.edge.probs, outdir) {
   metrics.box <- c('cluster.coefficient',
                    'betweenness.centrality',
@@ -1011,15 +1010,23 @@ write.plots.trends <- function(trends, markov.chains, developer.classifications,
   project.name <- unique(trends$name)
   analysis.method <- unique(trends$analysis.method)
 
-  file.dir <- paste(outdir, "/", project.name, "_", analysis.method, sep="")
-
   ## Save markov chain plot
   if(!is.null(markov.chains)) {
     chain.types <- names(markov.chains)
     for (type in chain.types) {
-      filename <- paste(file.dir, "/", type, ".pdf", sep="")
+      filename <- paste(outdir, "/", type, ".pdf", sep="")
       pdf(file=filename)
-      plot(markov.chains[[type]], margin=0.25)
+
+      if (dim(markov.chains[[type]]) == 3) {
+        layout <- matrix(c(0,0,1,2,2,0), ncol=2, byrow=TRUE)
+      } else if (dim(markov.chains[[type]]) == 2) {
+        layout <- matrix(c(0,0,2,2), ncol=2, byrow=TRUE)
+      } else if (dim(markov.chains[[type]]) == 1) {
+        layout <- matrix(c(1,1), ncol=2, byrow=TRUE)
+      }
+
+      plot(markov.chains[[type]], margin=0.3, layout=layout, vertex.size=45,
+           edge.loop.angle=3*pi/2, edge.curved=TRUE)
       dev.off()
     }
   }
@@ -1036,19 +1043,19 @@ write.plots.trends <- function(trends, markov.chains, developer.classifications,
                class.edge.probs=class.edge.probs,
                all.agreement=all.agreement)
 
-  save(data, file=paste(file.dir, "/project_data.dat",sep=""))
+  save(data, file=paste(outdir, "/project_data.dat",sep=""))
 
 }
 
-
-run.trends.analysis <- function (con) {
-  base.dir <- "/home/mitchell/trends"
-  types <- c("developer", "co-change")
+run.trends.analysis <- function(conf) {
+  base.dir <- conf$resdir
+  types <- c("developer")
 
   sapply(types,
     function(type) {
-      outdir <- paste(base.dir, type, sep="/")
-      compute.all.project.trends(con, type, outdir)
+      outdir <- paste(base.dir, "ts", type, sep="/")
+      dir.create(file.path(outdir), showWarnings = FALSE)
+      compute.all.project.trends(conf, type, outdir)
     })
 
   return(0)
@@ -1065,12 +1072,10 @@ remove.outliers <- function(x, na.rm = TRUE, ...) {
 save.as.graphml <- function(project.data, outdir) {
   project.name <- project.data[[1]]$project.name
   analysis.method <- project.data[[1]]$analysis.method
-  file.dir <- paste(outdir, "/", project.name, "_", analysis.method, "/", "GraphML",sep="")
-  dir.create(file.dir)
   graph.list <- lapply(project.data,
                           function(g) return(g$graph))
 
   sapply(1:length(graph.list), function(i) {
-                                filename <- paste(file.dir, "/", "graph_", as.character(i), ".graphml", sep="")
+                                filename <- paste(outdir, "/", "graph_", as.character(i), ".graphml", sep="")
                                  write.graph(graph.list[[i]], file=filename, format="graphml")})
 }

@@ -138,9 +138,9 @@ graph.align <- function(g.1, g.2) {
   E(g.1)$weight <- ceiling( scale.data(E(g.1)$weight, 0, 1) )
   E(g.2)$weight <- ceiling( scale.data(E(g.2)$weight, 0, 1) )
 
-  intersectNames <- intersect(V(g.1), V(g.2))
-  idx.1 <- match(intersectNames, V(g.1))
-  idx.2 <- match(intersectNames, V(g.2))
+  intersectNames <- intersect(V(g.1)$name, V(g.2)$name)
+  idx.1 <- match(intersectNames, V(g.1)$name)
+  idx.2 <- match(intersectNames, V(g.2)$name)
 
   ## Build adjacency matrix of interesecting ids
   adj.matrix.1.intersect <- g.1[idx.1, idx.1]

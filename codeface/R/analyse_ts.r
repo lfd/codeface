@@ -318,8 +318,8 @@ do.cluster.analysis <- function(resdir, graphdir, conf,
 ## the clusters as totally disjoint and assign a zero similarity.
 MIN.SIMILARITY <- 10
 clusters.simple.similarity <- function(conf, c1.id, c2.id) {
-  c1.members <- query.cluster.members(conf, c1.id)
-  c2.members <- query.cluster.members(conf, c2.id)
+  c1.members <- query.cluster.members(conf$con, c1.id)
+  c2.members <- query.cluster.members(conf$con, c2.id)
 
   smaller.size <- min(length(c1.members), length(c2.members))
   larger.size <- max(length(c1.members), length(c2.members))
@@ -356,11 +356,14 @@ determine.cluster.mapping <- function(conf, cluster.method=cluster.methods[1]) {
     ## processing)
     range.id <- range.ids[[i]]
     cluster.ids <- query.cluster.ids(conf, range.id, "Spin glass community")
+    cluster.numbers <- query.cluster.numbers(conf, range.id, "Spin glass community")
 
     ## boundaries.index can be used as index into conf$boundaries
     ## to determine
-    return(data.frame(new.cluster=TRUE, label=NA, cluster.id=cluster.ids,
-                      boundaries.index=i))
+    if (length(cluster.ids) > 0) {
+      return(data.frame(new.cluster=TRUE, label=NA, cluster.id=cluster.ids,
+                        cluster.num=cluster.numbers, boundaries.index=i))
+    }
   })
 
   ## Labelling the clusters in the first release is simple: Just use
@@ -372,35 +375,41 @@ determine.cluster.mapping <- function(conf, cluster.method=cluster.methods[1]) {
   ## clusters in range i+1.
   for (i in 1:(length(res)-1)) {
     logdevinfo(paste("Computing for range", i), logger="analyze_ts")
-    clust.sim <- expand.grid(c1=res[[i]]$cluster.id,
-                             c2=res[[i+1]]$cluster.id)
-    clust.sim$sim <- sapply(1:dim(clust.sim)[1], function(j) {
-      c.ids <- clust.sim[j,]
-      ## We could save some effort by querying the cluster members once
-      ## and then re-using the results.
-      return(clusters.simple.similarity(conf, c.ids$c1, c.ids$c2))
-    })
+    if (!is.null(nrow(res[[i]])) && !is.null(nrow(res[[i+1]]))) {
+      clust.sim <- expand.grid(c1=res[[i]]$cluster.id,
+                               c2=res[[i+1]]$cluster.id)
+      clust.sim$sim <- sapply(1:dim(clust.sim)[1], function(j) {
+        c.ids <- clust.sim[j,]
+        ## We could save some effort by querying the cluster members once
+        ## and then re-using the results.
+        return(clusters.simple.similarity(conf, c.ids$c1, c.ids$c2))
+      })
 
-    ## Remove total mismatches, and sort the matches by decreasing strength
-    clust.sim <- clust.sim[clust.sim$sim>0,]
-    clust.sim <- clust.sim[sort(clust.sim$sim, index.return=TRUE, decreasing=TRUE)$ix,]
+      ## Remove total mismatches, and sort the matches by decreasing strength
+      clust.sim <- clust.sim[clust.sim$sim>0,]
+      clust.sim <- clust.sim[sort(clust.sim$sim, index.return=TRUE, decreasing=TRUE)$ix,]
 
-    ## Systematically pick the best matches
-    for (j in 1:dim(clust.sim)[1]) {
-      ## Given the assignment from c1 to c2, determine which label c1 has in
-      ## the previous range
-      c1 = clust.sim[j,]$c1
-      c2 = clust.sim[j,]$c2
+      if (nrow(clust.sim) > 0) {
+        ## Systematically pick the best matches
+        for (j in 1:dim(clust.sim)[1]) {
+          ## Given the assignment from c1 to c2, determine which label c1 has in
+          ## the previous range
+          c1 = clust.sim[j,]$c1
+          c2 = clust.sim[j,]$c2
 
-      label.c1 <- res[[i]][which(res[[i]]$cluster.id == c1),]$label
+          label.c1 <- res[[i]][which(res[[i]]$cluster.id == c1),]$label
 
-      ## If c2 does not yet have a label (labels that were assigned earlier
-      ## have higher prio because they stem from higher similarity values)
-      ## _and_ if the label is not yet used, assign it to c2
-      label.c2 <- res[[i+1]][which(res[[i+1]]$cluster.id == c2),]$label
+          if (!is.null(label.c1)) {
+            ## If c2 does not yet have a label (labels that were assigned earlier
+            ## have higher prio because they stem from higher similarity values)
+            ## _and_ if the label is not yet used, assign it to c2
+            label.c2 <- res[[i+1]][which(res[[i+1]]$cluster.id == c2),]$label
 
-      if(is.na(label.c2) & !(label.c1 %in% res[[i+1]]$label)) {
-        res[[i+1]][which(res[[i+1]]$cluster.id == c2),]$label <- label.c1
+            if(is.na(label.c2) & !(is.null(label.c1)) & !(label.c1 %in% res[[i+1]]$label)) {
+              res[[i+1]][which(res[[i+1]]$cluster.id == c2),]$label <- label.c1
+            }
+          }
+        }
       }
     }
 
@@ -420,6 +429,20 @@ determine.cluster.mapping <- function(conf, cluster.method=cluster.methods[1]) {
     ## previous release
     if (length(labelled.idx) > 0) {
       res[[i+1]][labelled.idx,]$new.cluster <- FALSE
+    }
+  }
+
+  ## Save cluster mappings
+  outdir <- paste(conf$resdir, "ts", "cluster", sep="/")
+  dir.create(outdir, recursive=T)
+
+  for (i in 1:(length(res))) {
+    if (!is.null(res)) {
+      file_path <- paste(outdir, "/range_", str_pad(i, 3, side="left", pad="0"),
+                        "_cluster_mapping_",
+                        chartr(" ", "_", tolower(cluster.method)),
+                        ".csv", sep="")
+      write.csv(res[i], file_path, row.names=FALSE)
     }
   }
 
@@ -498,18 +521,22 @@ do.commit.analysis <- function(resdir, graphdir, conf) {
       dat <- dat[dat$variable!="NumTags",]
     }
 
-    if (has.rcs) {
-      g <- ggplot(data=dat, aes(x=revision, y=value, colour=inRC))
+    if (any(is.na(dat$value))) {
+      logdevinfo("Skip ts_commits plot due to missing values.")
     } else {
-      g <- ggplot(data=dat, aes(x=revision, y=value))
-    }
-    g <- g + geom_boxplot(fill="NA") + scale_y_log10() +
-        facet_wrap(~variable, scales="free") + xlab("Revision") +
-        ylab("Value (log. scale)") +
-        scale_colour_discrete("Release\nCandidate") +
-        ggtitle(paste("Commit time series for year", year))
-    ggsave(file.path(graphdir, paste("ts_commits_", year, ".pdf", sep="")),
-           g, width=12, height=8)
+      if (has.rcs) {
+        g <- ggplot(data=dat, aes(x=revision, y=value, colour=inRC))
+      } else {
+        g <- ggplot(data=dat, aes(x=revision, y=value))
+      }
+      g <- g + geom_boxplot(fill="NA") + scale_y_log10() +
+          facet_wrap(~variable, scales="free") + xlab("Revision") +
+          ylab("Value (log. scale)") +
+          scale_colour_discrete("Release\nCandidate") +
+          ggtitle(paste("Commit time series for year", year))
+      ggsave(file.path(graphdir, paste("ts_commits_", year, ".pdf", sep="")),
+             g, width=12, height=8)
+      }
     })
 }
 
@@ -606,7 +633,7 @@ do.release.analysis <- function(resdir, graphdir, conf) {
   plot.id <- get.clear.plot.id(conf, plot.name)
 
   dat <- compute.release.distance(series.merged, conf)
-  if (!is.na(dat)) { # if too few revisions are present, skip further analysis
+  if (!all(is.na(dat))) { # if too few revisions are present, skip further analysis
     dat <- data.frame(time=as.character(conf$boundaries$date.end[-1]), value=dat,
                       value_scaled=dat, plotId=plot.id)
 
@@ -760,6 +787,8 @@ config.script.run({
   logdevinfo("-> Finished commit analysis", logger="analyse_ts")
 
   do.cluster.analysis(resdir, graphdir, conf)
+  determine.cluster.mapping(conf, "Spin Glass Community")
+  determine.cluster.mapping(conf, "Random Walk Community")
   logdevinfo("-> Finished cluster analysis", logger="analyse_ts")
 
   do.release.analysis(resdir, graphdir, conf)

@@ -308,6 +308,17 @@ function unlockTablePerson(connection) {
  */
 
 function checkedWithID(name, email, projectID, response, connection, callback) {
+    // Match identities with the suffix "(none)" in their name or
+    // e-mail address, which is appended if they commit using an
+    // e-mail address without a valid top-level domain, e.g.
+    // example@localhost
+    if (name) {
+        name = name.replace(' (none)','');
+    }
+    if (email) {
+        email = email.replace('(none)','');
+    }
+
     if (name && email) {
         // First, try to get an existing database that matches both name and email
 	q = 'SELECT id FROM person WHERE projectId=? AND name=? AND ? IN (email1, email2, email3, email4, email5);'

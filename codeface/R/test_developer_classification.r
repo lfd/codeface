@@ -34,8 +34,8 @@ get.developer.class.centrality.test <- function() {
   g <- barabasi.game(300)
   edgelist <- get.data.frame(g)
   vertex.ids <- c(as.vector(V(g)), 301:305)
-  developer.class <- get.developer.class.centrality(edgelist, vertex.ids,
-                                                    threshold)
+  developer.class <- get.developer.class.centrality(edgelist, vertex.ids, source = "VCS",
+                                                    threshold = threshold)
   core.class <- subset(developer.class, class=="core")
   res <- sum(core.class$centrality) < threshold*sum(igraph::degree(g))
   return(res)
@@ -48,8 +48,8 @@ compare.classification.test <- function() {
   degree.vec <- igraph::degree(g)[sample(seq_along(vertex.ids), length(vertex.ids))]
   commits <- unlist(sapply(vertex.ids, function(id) rep(id, degree.vec[id])))
   commit.df <- data.frame(author=commits)
-  class.centrality <- get.developer.class.centrality(edgelist, vertex.ids)
-  class.commit <- get.developer.class(count(commit.df, "author"))
+  class.centrality <- get.developer.class.centrality(edgelist, vertex.ids, source = "VCS")
+  class.commit <- get.developer.class(count(commit.df, "author"), count.type="commit")
   class.match <- compare.classification(class.centrality, class.commit)
   res <- all(class.match$total > 0 & class.match < 1)
   return(res)

@@ -41,6 +41,7 @@ from codeface.dbmanager import DBManager, tstamp_to_sql
 from .PersonInfo import PersonInfo
 from .idManager import idManager
 from codeface.linktype import LinkType
+from codeface.util import encode_as_utf8
 
 #Global Constants
 SEED = 448
@@ -1096,6 +1097,7 @@ def writeCommitData2File(cmtlist, id_mgr, outdir, releaseRangeID, dbm, conf,
         values = {"commitHash" : cmt.id,
                   "commitDate" : tstamp_to_sql(int(cmt.getCdate())),
                   "author" : cmt.getAuthorPI().getID(),
+                  "committer": cmt.getCommitterPI().getID(),
                   "authorDate" : tstamp_to_sql(int(cmt.adate)),
                   "authorTimeOffset" : cmt.adate_tz,
                   "projectId" : projectID,
@@ -1194,7 +1196,7 @@ def writeIDwithCmtStats2File(id_mgr, outdir, releaseRangeID, dbm, conf):
 
 
 def writeDependsToDB(
-        logical_depends, cmtlist, dbm, conf, entity_type=("Function", ),
+        logical_depends, cmtlist, releaseRangeID, dbm, conf, entity_type=("Function", ),
         get_entity_source_code=None):
     '''
     Write logical dependency data to database
@@ -1224,7 +1226,7 @@ def writeDependsToDB(
             # if there are dependencies for the current commit, add them to the rows to be added to DB
             if (cmt.id in logical_depends_current) & (logical_depends_current is not None):
                 # get ID for current commit
-                key = dbm.getCommitId(projectID, cmt.id)
+                key = dbm.getCommitId(projectID, cmt.id, releaseRangeID)
 
                 # get the commit dependencies for current commit
                 depends_list = logical_depends_current[cmt.id]
@@ -1238,7 +1240,7 @@ def writeDependsToDB(
                                 for indx, impl in enumerate(depend_impl_list)]
 
                 # construct rows to be put in DB
-                rows = [(key, file, entityId, entity_type_current, count, impl)
+                rows = [(key, file, encode_as_utf8(entityId), entity_type_current, count, impl)
                         for file, entityId, count, impl in depends_list]
                 cmt_depend_rows.extend(rows)
 
@@ -1382,7 +1384,7 @@ def emitStatisticalData(cmtlist, id_mgr, logical_depends, outdir, releaseRangeID
     writeAdjMatrixMaxWeight2File(id_mgr, outdir, conf)
 
     if logical_depends is not None:
-        writeDependsToDB(logical_depends, cmtlist, dbm, conf, entity_type,
+        writeDependsToDB(logical_depends, cmtlist, releaseRangeID, dbm, conf, entity_type,
                          get_entity_source_code)
 
     return None
@@ -1396,13 +1398,14 @@ def populatePersonDB(cmtlist, id_mgr, link_type=None):
         cmt.setAuthorPI(pi)
         pi.addCommit(cmt)
 
+        #create person for committer
+        ID_c = id_mgr.getPersonID(cmt.getCommitterName())
+        pi_c = id_mgr.getPI(ID_c)
+        cmt.setCommitterPI(pi_c)
+
         if link_type in \
                 (LinkType.proximity, LinkType.committer2author,
                  LinkType.file, LinkType.feature, LinkType.feature_file):
-            #create person for committer
-            ID_c = id_mgr.getPersonID(cmt.getCommitterName())
-            pi_c = id_mgr.getPI(ID_c)
-            cmt.setCommitterPI(pi_c)
             if ID_c != ID:
                 # Only add the commit to the committer's person instance
                 # if committer and author differ, otherwise contributions
@@ -1863,7 +1866,19 @@ def performAnalysis(conf, dbm, dbfilename, git_repo, revrange, subsys_descr,
 
     log.devinfo("Reading from data base {0}...".format(dbfilename))
     git = readDB(dbfilename)
-    cmtlist = git.extractCommitData("__main__")
+
+    if reuse_db:
+        log.devinfo("Extract commit data again...")
+        git.extractCommitData(link_type=link_type, reuse_shelved_objects=False)
+        log.devinfo("Shelving the new VCS object")
+        output = open(dbfilename, 'wb')
+        pickle.dump(git, output, -1)
+        output.close()
+        log.devinfo("Finished shelving the new VCS object")
+        cmtlist = git.extractCommitData("__main__", reuse_shelved_objects=False)
+    else:
+        cmtlist = git.extractCommitData("__main__")
+
     cmtdict = git.getCommitDict()
 
     #---------------------------------

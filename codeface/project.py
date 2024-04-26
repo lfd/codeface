@@ -143,6 +143,25 @@ def project_analyse(resdir, gitdir, codeface_conf, project_conf,
                     (start_rev, end_rev, range_resdir),
                     deps=[s2],
                     startmsg=prefix + "Generating reports...",
+                )
+
+            exe = abspath(resource_filename(__name__, "R/shiny/plot_export.r"))
+            cwd, _ = pathsplit(exe)
+            cmd = []
+            cmd.append(exe)
+            cmd.extend(("--loglevel", loglevel))
+            if logfile:
+                cmd.extend(("--logfile", "{}.R.r{}".format(logfile, i)))
+            cmd.extend(("-c", codeface_conf))
+            cmd.extend(("-p", project_conf))
+            cmd.append(range_resdir)
+            cmd.append(str(range_id))
+
+            pool.add(
+                    execute_command,
+                    (cmd,),
+                    {"direct_io":True, "cwd":cwd},
+                    deps=[s2],
                     endmsg=prefix + "Report generation done."
                 )
 
@@ -190,6 +209,23 @@ def project_analyse(resdir, gitdir, codeface_conf, project_conf,
     cmd.extend(("-j", str(n_jobs)))
     cmd.append(project_resdir)
     execute_command(cmd, direct_io=True, cwd=cwd)
+
+    # Analyse community trends
+    log.info("=> Analysing community trends")
+    exe = abspath(resource_filename(__name__, "R/cluster/community_analysis.r"))
+    cwd, _ = pathsplit(exe)
+    cmd = [exe]
+    if profile_r:
+        cmd.append("--profile")
+    if logfile:
+        cmd.extend(("--logfile", "{}.R.ts".format(logfile)))
+    cmd.extend(("--loglevel", loglevel))
+    cmd.extend(("-c", codeface_conf))
+    cmd.extend(("-p", project_conf))
+    cmd.extend(("-j", str(n_jobs)))
+    cmd.append(project_resdir)
+    execute_command(cmd, direct_io=True, cwd=cwd)
+
     log.info("=> Codeface run complete!")
 
 def mailinglist_analyse(resdir, mldir, codeface_conf, project_conf, loglevel,

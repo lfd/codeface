@@ -18,6 +18,9 @@
 # Copyright 2010, 2011, 2012 by Wolfgang Mauerer <wm@linux-kernel.net>
 # All Rights Reserved.
 
+from codeface.util import encode_as_utf8
+
+
 class Commit:
     # Keywords to identify corrective commits
     # Ref: A. Mockus and L. G. Votta, Identifying Reasons for Software
@@ -152,7 +155,10 @@ class Commit:
         return self.taggers_subsys_similarity
 
     def setDescription(self, descr):
-        self.description = ' '.join(descr)
+        # transform to single string
+        description = ' '.join(descr)
+        # convert to UTF-8
+        self.description = encode_as_utf8(description)
 
     def checkIfCorrective(self, descr):
         # Check if commit description contains keywords that indicate a

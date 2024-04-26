@@ -44,6 +44,7 @@ import os
 import bisect
 import ctags
 import tempfile
+#import DBAnalysis
 import sourceAnalysis
 import shutil
 from fileCommit import FileDict
@@ -53,7 +54,7 @@ from logging import getLogger
 from codeface.linktype import LinkType
 
 log = getLogger(__name__)
-from .util import execute_command
+from .util import execute_command, encode_as_utf8
 
 class Error(Exception):
     """Base class for exceptions in this module."""
@@ -804,8 +805,8 @@ class gitVCS (VCS):
 
             # Check if this is a genuine empty commit
             # Since the commit message is indented by 4 spaces
-            # we check if the last line of the commit still starts this way.
-            if not matched and msg[-1].startswith("    "):
+            # we check if the last (non-empty) line of the commit still starts this way.
+            if not matched and (msg[-1].startswith("    ") or (not msg[-1] and msg[-2].startswith("    "))):
                 log.devinfo("Empty commit. Commit <id {}> is: '{}'".
                             format(cmt.id, msg))
                 matched = True
@@ -861,14 +862,14 @@ class gitVCS (VCS):
                     # print("About to call " + " ".join(cmd))
                     msg = execute_command(cmd)
                     self._analyseDiffStat(msg, cmt)
-                except UnicodeDecodeError:
+                except UnicodeDecodeError as ude:
                     # Since we work in utf8 (which git returns and
                     # Python is supposed to work with), this exception
                     # seems to stem from a faulty encoding. Just
                     # ignore the commit
                     cmt.diff_info.append((0,0,0))
-                    log.warning("Ignoring commit {} due to unicode error.".
-                            format(pe.id))
+                    log.warning("Ignoring commit {0} due to unicode error.".
+                            format(ude.id))
                 except ParseError as pe:
                     # Since the diff format is very easy to parse,
                     # this most likely stems from a malformed diff
@@ -946,39 +947,48 @@ class gitVCS (VCS):
             if (match):
                 cmt.committer = match.group(1)
 
-        descr = parts[descr_index].split("\n")
+        # Check if the commit actually contains a description
+        if descr_index < len(parts):
 
-        # Check if commit is corrective using key word search of description
-        cmt.checkIfCorrective(descr)
+            descr = parts[descr_index].split("\n")
 
-        # Add commit description to commit object
-        cmt.setDescription(descr)
+            # Check if commit is corrective using key word search of description
+            cmt.checkIfCorrective(descr)
 
-        # Ensure that there are actually sign off tags in the commit message
-        found = False
-        i = 0
-        for line in descr:
-            line = line.lstrip()
-            found = any([prefix.match(line) for prefix in self.signOffPatterns])
+            # Add commit description to commit object
+            cmt.setDescription(descr)
+
+            # Ensure that there are actually sign off tags in the commit message
+            found = False
+            i = 0
+            for line in descr:
+                line = line.lstrip()
+                found = any([prefix.match(line) for prefix in self.signOffPatterns])
+                if found:
+                    break
+                i+=1
+
             if found:
-                break
-            i+=1
+                descr_message = "\n".join(parts[descr_index].
+                                          split("\n \n ")[0:i-1])
+                self._analyseSignedOffs(descr[i:], cmt)
+            else:
+                descr_message = parts[descr_index]
 
-        if found:
-            descr_message = "\n".join(parts[descr_index].
-                                      split("\n \n ")[0:i-1])
-            self._analyseSignedOffs(descr[i:], cmt)
+            # Normalise the commit message
+            final_message = ""
+            for line in descr_message.split("\n"):
+                line = re.sub("^    ", "", line)
+                final_message += line + "\n"
+
+            cmt.commit_msg_info = (len(final_message.split("\n")),
+                                   len(final_message))
         else:
-            descr_message = parts[descr_index]
+            # The commit does not contain a commit message
+            log.warning("The commit {0} does not contain a commit message.".
+                        format(cmt.id))
+            cmt.commit_msg_info = (0,0)
 
-        # Normalise the commit message
-        final_message = ""
-        for line in descr_message.split("\n"):
-            line = re.sub("^    ", "", line)
-            final_message += line + "\n"
-
-        cmt.commit_msg_info = (len(final_message.split("\n")),
-                               len(final_message))
 
     def _analyseSignedOffs(self, msg, cmt):
         """Analyse the Signed-off-part of a commit message."""
@@ -1029,7 +1039,7 @@ class gitVCS (VCS):
                 for logstring in reversed(clist)]
 
 
-    def extractCommitData(self, subsys="__main__", link_type=None):
+    def extractCommitData(self, subsys="__main__", link_type=None, reuse_shelved_objects=True):
         if not(self._subsysIsValid(subsys)):
             log.critical("Subsys specification invalid: {0}\n".format(subsys))
             raise Error("Invalid subsystem specification.")
@@ -1037,7 +1047,7 @@ class gitVCS (VCS):
         # If we've already computed the result, make use of it
         # (shelved objects can therefore provide a significant
         # performance advantage)
-        if self._commit_list_dict:
+        if reuse_shelved_objects and self._commit_list_dict:
             log.devinfo("Using cached data to extract commit information")
             return self._commit_list_dict[subsys]
 
@@ -1346,24 +1356,33 @@ class gitVCS (VCS):
             start = int(elem['bodystart']) - 1
             end = int(elem['bodyend']) - 1
             name = elem['name']
-            f_lines = {line_num:name  for line_num in range(start, end+1)}
-            func_lines.update(f_lines)
+            # Check if start or end are invalid line numbers. If so, just ignore this function completely.
+            if start == -1 or end == -1:
+                log.warning("doxygen parse error: body (start, end) of function '{0}' in file '{1}' "
+                            "could not be parsed. Function ignored.".format(name, src_file))
+            else:
+                f_lines = {line_num:name  for line_num in range(start, end+1)}
+                func_lines.update(f_lines)
 
         return func_lines, file_analysis.src_elem_list
 
     def _parseSrcFileDB(self, src_file):
         log.debug("Running DB analysis")
 
-        res = DBAnalysis(src_file)
-        # Get src element bounds
-        func_lines = {}
-        for elem in res:
-            # Source indices in DB analysis start at 1, convert to zero based values
-            start = int(elem['start']) - 1
-            end = int(elem['end']) - 1
-            name = elem['name']
-            f_lines = {line_num:name  for line_num in range(start, end+1)}
-            func_lines.update(f_lines)
+        try:
+            res = DBAnalysis(src_file)
+            # Get src element bounds
+            func_lines = {}
+            for elem in res:
+                # Source indices in DB analysis start at 1, convert to zero based values
+                start = int(elem['start']) - 1
+                end = int(elem['end']) - 1
+                name = elem['name']
+                f_lines = {line_num:name  for line_num in range(start, end+1)}
+                func_lines.update(f_lines)
+        except:
+            log.warning("Analyzing functions in sql files is not completely implemented in Codeface due to missing imports!")
+            func_lines = {}
 
         return func_lines
 
@@ -1372,7 +1391,7 @@ class gitVCS (VCS):
         tag_file = tempfile.NamedTemporaryFile()
 
         # run ctags analysis on the file to create a tags file
-        cmd = "ctags-exuberant -f {0} --fields=nk {1}".format(tag_file.name,
+        cmd = "ctags-universal -f {0} --fields=nk {1}".format(tag_file.name,
                                                               src_file).split()
         output = execute_command(cmd).splitlines()
 
@@ -1394,15 +1413,35 @@ class gitVCS (VCS):
         #  structures tags, we may need more languages specific assignments
         #  in addition to java and c# files, use "ctags --list-kinds" to
         # see all tag meanings per language
+        # Find more information here: https://github.com/universal-ctags/ctags/tree/master/parsers
         fileExt = os.path.splitext(src_file)[1].lower()
-        if fileExt in (".java", ".j", ".jav", ".cs", ".js"):
+        if fileExt in (".java", ".j", ".jav", ".cs", ".js", ".es6", ".jsm", ".ts", ".dart", ".scala", ".sc"):
             structures.append("m") # methods
             structures.append("i") # interface
+        elif fileExt in (".go"):
+            structures.append("i") # interfaces
+        elif fileExt in (".rb"):
+            structures.append("m") # modules
+            structures.append("S") # singleton method
         elif fileExt in (".php"):
             structures.append("i") # interface
             structures.append("j") # functions
         elif fileExt in (".py"):
             structures.append("m") # class members
+        elif fileExt in (".go"):
+            structures.append("n") # interface
+            structures.append("m") # methods
+            structures.append("r") # constructor
+        elif fileExt in (".rs", ".ru"):
+            structures.append("n") # module
+            structures.append("i") # interface
+            structures.append("P") # method
+        elif fileExt in (".lisp", ".lsp", ".pl"):
+            structures.append("M") # module
+        elif fileExt in (".r", ".rscript", ".erl"):
+            structures = ["f", "m"]
+        elif fileExt in (".ada"):
+            structures = ["y", "r", "p"]
 
         while(tags.next(entry)):
             if entry['kind'] in structures:
@@ -1455,11 +1494,14 @@ class gitVCS (VCS):
         if (fileExt in ['.java', '.cs', '.d', '.php', '.php4', '.php5',
                         '.inc', '.phtml', '.m', '.mm', '.py', '.f',
                         '.for', '.f90', '.idl', '.ddl', '.odl', '.tcl',
-                        '.cpp', '.cxx', '.c', '.cc']):
+                        '.cpp', '.cxx', '.c', '.cc',
+                        ".go", ".vue", # ".hs",
+                        ".pl", ".pm", ".swift", ".lua", ".scala", ".sc", ".lisp", ".lsp", #".feature",
+                        ".groovy", ".gy", ".gv", ".gvy", ".gsh", ".kt", ".kts", ".ktm"]):
             func_lines, src_elems = self._parseSrcFileDoxygen(srcFile.name)
             file_commit.setSrcElems(src_elems)
             file_commit.artefact_line_range = True
-        elif (fileExt in ['sql']):
+        elif (fileExt in ['sql', ".q"]):
             # TODO: Should we use more file extensions?
             func_lines = self._parseSrcFileDB(srcFile.name)
             file_commit.artefact_line_range = True
@@ -1476,7 +1518,8 @@ class gitVCS (VCS):
 
         # save the implementation for each function
         for line_num, src_line in enumerate(file_layout_src):
-            file_commit.addFuncImplLine(line_num, src_line)
+            src_line_utf8 = encode_as_utf8(src_line)
+            file_commit.addFuncImplLine(line_num, src_line_utf8)
 
 
     def cmtHash2CmtObj(self, cmtHash):
@@ -1534,9 +1577,12 @@ class gitVCS (VCS):
 
         #filter results to only get implementation files
         fileExt = (".c", ".cc", ".cpp", ".cxx", ".cs", ".asmx", ".m", ".mm",
-                   ".js", ".coffee", ".java", ".j", ".jav", ".php",".py", ".sh", ".rb",
-                   '.d', '.php4', '.php5', '.inc', '.phtml', '.m', '.mm',
-                   '.f', '.for', '.f90', '.idl', '.ddl', '.odl', '.tcl', 'sql')
+                   ".js", ".coffee", ".java", ".j", ".jav", ".php",".py", ".sh", ".ps1", ".rb",
+                   '.d', '.php4', '.php5', '.inc', '.phtml', '.m', '.mm', ".ada", ".erl", ".bb",
+                   '.f', '.for', '.f90', '.idl', '.ddl', '.odl', '.tcl', 'sql', ".q", ".exs", ".ex",
+                   ".ru", ".rs", ".ts", ".go", ".dart", ".r", ".rscript", ".vue", # ".hs",
+                   ".pl", ".pm", ".swift", ".lua", ".scala", ".sc", ".lisp", ".lsp", # ".feature",
+                   ".groovy", ".gy", ".gv", ".gvy", ".gsh", ".kt", ".kts", ".ktm", ".es6", ".jsm")
 
         fileNames = [fileName for fileName in all_files if
                      fileName.lower().endswith(fileExt)]

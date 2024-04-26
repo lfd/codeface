@@ -15,6 +15,7 @@
 #
 # Copyright 2016, 2017 by Wolfgang Mauerer <wolfgang.mauerer@oth-regensburg.de>
 # Copyright 2016 by Carlos Andrade <carlos.andrade@acm.org>
+# Copyright 2019 by Anselm Fehnker <fehnker@fim.uni-passau.de>
 # All Rights Reserved.
 
 # Data gathering and preparation steps for Conway analysis
@@ -26,13 +27,14 @@ import codecs
 import time
 import csv
 import sys
+from time import sleep
 from datetime import datetime
 from logging import getLogger; log = getLogger(__name__)
 from progressbar import ProgressBar, Percentage, Bar, ETA
 
 from .VCS import gitVCS
 from .dbmanager import DBManager
-from .util import execute_command
+from .util import execute_command, encode_items_as_utf8
 from os import listdir
 
 import xml.etree.cElementTree as ET
@@ -55,8 +57,13 @@ def get_email_from_jira(userid, jira):
                 email[i] = '@'
         email = ''.join(email)
         return email
-    user = jira.user(id=userid, expand=["name","emailAddress"])
-    user_data = (user.name, fix_email_format(user.emailAddress))
+    user = jira.user(id=userid, expand=["name", "emailAddress", "displayName"])
+
+    # verify that attribute emailAddress exists
+    if not hasattr(user, "emailAddress"):
+       user.emailAddress = ""
+
+    user_data = (user.name.lower(), fix_email_format(user.emailAddress), unicode(user.displayName))
     return user_data
 
 
@@ -85,7 +92,7 @@ def parse_jira_issues(xmldir, resdir, jira_url, jira_user, jira_password):
                         if issue.tag == "type":
                             issue_type = issue.text
                         if issue.tag == "reporter":
-                            issue_reporter = issue.get('username').encode('utf-8')
+                            issue_reporter = issue.get('username').lower().encode('utf-8')
                             author_ids[issue_reporter] = 1
                         if issue.tag == "created":
                             row = {'IssueID': issue_key, 'IssueType': issue_type,
@@ -95,7 +102,7 @@ def parse_jira_issues(xmldir, resdir, jira_url, jira_user, jira_password):
                         if issue.tag  == "comments":
                              for comment in issue:
                                  issue_comment_author = None
-                                 issue_comment_author = comment.get('author').encode('utf-8')
+                                 issue_comment_author = comment.get('author').lower().encode('utf-8')
                                  author_ids[issue_comment_author] = 1
                                  issue_comment_timestamp = comment.get('created')
                                  row = {'IssueID': issue_key, 'IssueType': issue_type,
@@ -111,10 +118,24 @@ def parse_jira_issues(xmldir, resdir, jira_url, jira_user, jira_password):
     widgets = ['Parsing jira issues: ', Percentage(), ' ', Bar(), ' ', ETA()]
     pbar = ProgressBar(widgets=widgets, maxval=total).start()
     emails = {} # Map ids to emails
+    display_names = {} # Maps ids to author names
+
+    # counter for JIRA requests to make sure to not exceed the request limit
+    request_counter = 0
+    max_requests = 45000 # 50,000 JIRA requests per 24 hours are allowed (but we don't count the requests from titan)
 
     for i, userid in enumerate(user_ids):
         res = None
         try:
+            # if the number of JIRA requests has reached the request limit, wait 24 hours
+            if request_counter > max_requests:
+                log.devinfo('More than {} JIRA requests have been sent. Wait for 24 hours...'.format(max_requests))
+                sleep(86500) # 60 * 60 * 24 = 86400
+                log.devinfo('Reset request counter. Proceed with JIRA requests...')
+                request_counter = 0
+
+            request_counter += 1
+            log.devinfo('JIRA request counter: {}'.format(request_counter))
             res = get_email_from_jira(userid, jira_instance)
         except jira.exceptions.JIRAError:
             log.devinfo('User ID {} not found'.format(userid))
@@ -125,25 +146,30 @@ def parse_jira_issues(xmldir, resdir, jira_url, jira_user, jira_password):
             pass
         else:
             emails[res[0]] = res[1]
+            display_names[res[0]] = res[2]
 
         pbar.update(i)
+
+    log.devinfo("In total, " + str(request_counter) + " requests have been sent to Jira.")
 
     # Store the results as CSV file (TODO: Place this in the codeface DB)
     # Contains the columns
     # IssueID (e.g., HIVE-1937)
     # IssueType (e.g., Bug, New Feature, ...)
     # AuthorID (alphanumeric jira id, e.g., cwstein)
+    # AuthorName (author's clear name, e.g., Charlie Winklestein)
     # CommentTimestamp (format: Tue, 1 Feb 2011 01:47:11 +0000)
     # userEmail (pure address without name, e.g., abc@apache.org)
     with open(os.path.join(resdir, "jira_issue_comments.csv"), 'w') as out:
-        fieldnames = ['IssueID', 'IssueType', 'AuthorID', 'CommentTimestamp', 'userEmail']
+        fieldnames = ['IssueID', 'IssueType', 'AuthorID', 'AuthorName', 'CommentTimestamp', 'userEmail']
         writer = csv.DictWriter(out, fieldnames=fieldnames)
 
         writer.writeheader()
         for row in issue_list:
             try:
                 row["userEmail"] = emails[row["AuthorID"]]
-                writer.writerow(row)
+                row["AuthorName"] = display_names[row["AuthorID"]]
+                writer.writerow(encode_items_as_utf8(row))
             except KeyError:
                 # Skip the entry if the email address of the user could not be resolved
                 log.warn('Could not resolve user ID {}, skipping entry'.format(userid))
@@ -279,7 +305,7 @@ def parseGitLogOutput(dat, dat_hashes, repo, outfile):
 def createFileDevTable(dbm, project_id, range_id, outfile):
     dat = dbm.get_file_dev(project_id, range_id)
 
-    with open(outfile, 'w') as out:
+    with open(outfile, 'wb') as out:
         csv_out = csv.writer(out, delimiter="\t")
         csv_out.writerow(['id', 'commitHash', 'commitDate', 'author', 'description',
                           'file', 'commitId', 'fileSize'])
