@@ -92,7 +92,7 @@ if(length(p) > 0) {
 
 ## install from CRAN
 p <- filter.installed.packages(c("statnet", "tm", "optparse", "arules", "data.table", "plyr",
-                                 "igraph", "zoo", "xts", "lubridate", "xtable", "ggplot2",
+                                 "zoo", "xts", "lubridate", "xtable", "ggplot2",
                                  "reshape", "wordnet", "stringr", "yaml", "ineq",
                                  "scales", "gridExtra", "scales", "RMySQL", "svglite",
                                  "RCurl", "mgcv", "shiny", "dtw", "httpuv", "devtools",
@@ -113,3 +113,7 @@ reinstall.package.from.github("shinybootstrap2", "rstudio/shinybootstrap2")
 #source("https://bioconductor.org/biocLite.R")
 #biocLite("Rgraphviz")
 BiocManager::install("Rgraphviz")
+
+# Install irgaph version 1.6.0, which is required
+# for functions used in trends analysis
+devtools::install_url("https://cran.r-project.org/src/contrib/Archive/igraph/igraph_1.6.0.tar.gz")

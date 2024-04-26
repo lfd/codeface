@@ -920,10 +920,10 @@ plot.series <- function(project.df, feature, outdir) {
                                                  face="plain", angle=45,
                                                  hjust=0.5),
                       strip.text.x = element_text(size=15))
-  }
 
-  file.name <- paste(outdir, "/time_series_metrics.png",sep="")
-  ggsave(file.name, p, height=41, width=20)
+    file.name <- paste(outdir, "/time_series_metrics.png",sep="")
+    ggsave(file.name, p, height=41, width=20)
+  }
 }
 
 
@@ -1054,6 +1054,7 @@ run.trends.analysis <- function(conf) {
   sapply(types,
     function(type) {
       outdir <- paste(base.dir, "ts", type, sep="/")
+      dir.create(file.path(outdir), showWarnings = FALSE)
       compute.all.project.trends(conf, type, outdir)
     })
 
