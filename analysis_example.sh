@@ -19,23 +19,23 @@ if [ -d /vagrant ]; then
     fi
 
     # Clone git repository
-    (cd $HOME/git-repos; git clone https://github.com/matplotlib/matplotlib)
+    (cd $HOME/git-repos; git clone https://gitlab.com/qemu-project/qemu/)
 
     # Run default analyses
-    codeface -l devinfo -j4 run \
+    codeface -j4 run \
         -c /vagrant/codeface.conf \
-        -p /vagrant/conf/matplotlib.conf \
+        -p /vagrant/conf/qemu.conf \
         $HOME/res $HOME/git-repos
 
 # Docker-based installation
 elif [ -d $HOME/codeface/codeface ]; then
     # Clone git repository
-    (cd $HOME/git-repos; git clone https://github.com/matplotlib/matplotlib)
+    (cd $HOME/git-repos; git clone https://gitlab.com/qemu-project/qemu/)
 
     # Run default analyses
-    codeface -l devinfo -j4 run \
+    codeface -j4 run \
         -c $HOME/codeface/codeface.conf \
-        -p $HOME/codeface/conf/matplotlib.conf \
+        -p $HOME/codeface/conf/qemu.conf \
         $HOME/res $HOME/git-repos
 
 else
