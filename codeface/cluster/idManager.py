@@ -131,19 +131,19 @@ class idManager:
         except:
             retryCount = 0
             successful = False
-            while (retryCount <= 10 and not successful):
+            while (retryCount <= 100 and not successful):
                 log.warning("Could not reach ID service. Try to reconnect " \
                             "(attempt {}).".format(retryCount));
                 self._conn.close()
                 self._conn = httplib.HTTPConnection(self._idMgrServer, self._idMgrPort)
-                time.sleep(60)
+                time.sleep(3600)
                 #self._conn.ping(True)
                 try:
                     self._conn.request("POST", "/post_user_id", params, self.headers)
                     res = self._conn.getresponse()
                     successful = True
                 except:
-                    if retryCount < 10:
+                    if retryCount < 100:
                         retryCount += 1
                     else:
                         retryCount += 1
@@ -193,19 +193,19 @@ class idManager:
             self._conn = httplib.HTTPConnection(self._idMgrServer, self._idMgrPort)
             retryCount = 0
             successful = False
-            while (retryCount <= 10 and not successful):
+            while (retryCount <= 100 and not successful):
                 log.warning("Could not reach ID service. Try to reconnect " \
                             "(attempt {}).".format(retryCount));
                 self._conn.close()
                 self._conn = httplib.HTTPConnection(self._idMgrServer, self._idMgrPort)
-                time.sleep(60)
+                time.sleep(3600)
                 #self._conn.ping(True)
                 try:
                     self._conn.request("GET", "/getUser/{}".format(person_id), headers=self.headers)
                     res = self._conn.getresponse()
                     successful = True
                 except:
-                    if retryCount < 10:
+                    if retryCount < 100:
                         retryCount += 1
                     else:
                         retryCount += 1

@@ -8,4 +8,5 @@ cd /home/codeface/codeface/id_service
 bash start_id_service.sh&
 
 # Prepare for user interaction
+mysql -u codeface -pcodeface codeface < /home/codeface/codeface/docker/config.sql
 /bin/bash
