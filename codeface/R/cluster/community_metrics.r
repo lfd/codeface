@@ -871,6 +871,7 @@ plot.box <- function(project.df, feature, outdir) {
     p1 = p0 + coord_cartesian(ylim = ylim1*1.05)
 
     file.name <- paste(outdir, "/", feature, ".png",sep="")
+    dir.create(file.path(outdir), recursive = TRUE, showWarnings = FALSE)
     ggsave(file.name, p1, height=8, width=20)
 
     ## ## Adjusted box plots for skewed data
@@ -890,6 +891,7 @@ plot.box <- function(project.df, feature, outdir) {
       p2 <- ggplot(project.df, aes(x=value)) +
             geom_histogram(aes(y=..density..),colour="black", fill="white") +
             geom_density(alpha=.2, fill="#FF6666")
+      dir.create(file.path(outdir), recursive = TRUE, showWarnings = FALSE)
       ggsave(file.name, p2, height=8, width=20)
     }
   }
@@ -922,6 +924,7 @@ plot.series <- function(project.df, feature, outdir) {
                       strip.text.x = element_text(size=15))
 
     file.name <- paste(outdir, "/time_series_metrics.png",sep="")
+    dir.create(file.path(outdir), recursive = TRUE, showWarnings = FALSE)
     ggsave(file.name, p, height=41, width=20)
   }
 }
@@ -952,6 +955,7 @@ plot.scatter <- function(project.df, feature1, feature2, outdir) {
         geom_smooth(method="lm")
 
     file.name <- paste(outdir, "/", feature1, "_vs_", feature2, ".png",sep="")
+    dir.create(file.path(outdir), recursive = TRUE, showWarnings = FALSE)
     ggsave(file.name, p, height=40, width=40)
   }
 }
@@ -969,6 +973,7 @@ plot.class.match <- function(class.match.df, class.rank.cor, filename) {
                        ylab("Percent Agreement") +
                        ggtitle(rank.cor.text)
 
+  dir.create(file.path(outdir), recursive = TRUE, showWarnings = FALSE)
   ggsave(plot=match.plot, filename=filename, width=7, height=5)
 }
 
