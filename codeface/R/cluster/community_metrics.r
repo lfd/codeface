@@ -563,7 +563,7 @@ compute.community.metrics <- function(g, comm) {
   res$edge.vert.ratio <- ecount(g) / vcount(g)
 
   ## Power-law fiting
-  p.fit <- power.law.fit(res$v.degree, implementation="plfit")
+  p.fit <- fit_power_law(res$v.degree, implementation="plfit", p.value=TRUE)
   param.names <- c("alpha", "xmin", "KS.p")
   res[param.names] <- p.fit[param.names]
   ## Check percent of vertices under power-law
@@ -590,7 +590,7 @@ compute.community.metrics <- function(g, comm) {
 
   ## Prepare data to be melted, maintain vertex and cluster ids
   ## by converting named vectors to named lists
-  # res <- lapply(res, function(x) as.list(x))
+  res <- lapply(res, function(x) as.list(x))
 
   return(res)
 }
@@ -789,10 +789,21 @@ compute.project.graph.trends <-
       revision.df.list <-
         mclapply(revision.data, mc.cores=n.cores,
                  function(rev) {
-                   df <- melt(compute.community.metrics(rev$graph, rev$comm))
+                   lst <- compute.community.metrics(rev$graph, rev$comm)
+                   df <- do.call(rbind, lapply(names(lst), function(metric) {
+                    inner <- lst[[metric]]
+                    values <- unlist(inner, recursive = TRUE, use.names = TRUE)
+                    gid <- names(values)
+                    if (is.null(gid)) {
+                      gid <- NA
+                    }
+                    if (length(values) == 0) {
+                      return(NULL)
+                    }
+                    data.frame(g.id = gid, metric = metric, value = values)
+                   }))
                    df[,names(project.data)] <- project.data
                    df$cycle <- rev$cycle
-                   df <- rename(df, c("L1"="metric", "L2"="g.id"))
                    return(df)})
 
       res <- do.call("rbind", revision.df.list)
