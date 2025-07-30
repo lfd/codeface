@@ -627,8 +627,14 @@ class gitVCS (VCS):
                     _Logstring2ID()
         """
         if self.range_by_date:
+            # In some projects that have been migrated from other version control 
+            # systems to Git, the start timestamp may be incorrectly set to 1.
+            # In this case, the following Git command will not return any commits. 
+            # As a workaround, this can be avoided by specifying a date.
             start_date = self._getRevDate(rev_start)
             end_date = self._getRevDate(rev_end)
+            if start_date.strip() == "1":
+                start_date = "1970-01-01"
             rev_range = ['--since=' + start_date,
                          '--before=' + end_date]
 
